@@ -23,9 +23,16 @@ class Message(BaseModel):
     timestamp: str
     delivered: bool = False  
     read: bool = False  
+class Message(BaseModel):
+    to: str  # The recipient's phone number including the country code
+    body: str  # The message body
 
-# In-memory store for messages (simulating a database)
+# Twilio credentials (replace with your actual credentials)
+account_sid = 'your_account_sid'
+auth_token = 'your_auth_token'
+from_whatsapp_number='whatsapp:your_twilio_whatsapp_number'  # Your Twilio WhatsApp number in the format 'whatsapp:+1234567890'
 messages = []
+client = Client(account_sid, auth_token)
 
 @app.post("/api/write_messages")
 async def receive_message_from_extension(message: Message):
@@ -54,6 +61,19 @@ async def send_to_odoo(message: dict):
             return response.json()
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=f"Error sending message to Odoo: {str(e)}")
+    
+
+@app.post("/send-message/")
+async def send_message(message: Message):
+    try:
+        message = client.messages.create(
+            body=message.body,
+            from_=from_whatsapp_number,
+            to=f'whatsapp:{message.to}'
+        )
+        return {"message": "Sent", "sid": message.sid}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # Run the application
 if __name__ == "__main__":
